@@ -178,17 +178,22 @@
 
     let control = null;
 
-    // Fonction des trajets prédéfinis
+    // === Fonctions de trajets prédéfinis ===
     function setRoute(type) {
       if (control) map.removeControl(control);
+
+      const router = L.Routing.osrmv1({
+        serviceUrl: 'https://router.project-osrm.org/route/v1'
+      });
 
       if (type === "adr") {
         control = L.Routing.control({
           waypoints: [
-            L.latLng(49.1083, 2.2244),
-            L.latLng(49.1168, 2.1144),
-            L.latLng(49.1381, 1.9814)
+            L.latLng(49.1083, 2.2244), // L’Isle-Adam
+            L.latLng(49.1168, 2.1144), // Vallangoujard
+            L.latLng(49.1381, 1.9814)  // Marines
           ],
+          router,
           lineOptions: { styles: [{ color: "#e74c3c", weight: 5 }] },
           addWaypoints: false
         }).addTo(map);
@@ -200,6 +205,7 @@
             L.latLng(49.0356, 2.0600),
             L.latLng(48.9726, 2.3166)
           ],
+          router,
           lineOptions: { styles: [{ color: "#3498db", weight: 5 }] },
           addWaypoints: false
         }).addTo(map);
@@ -212,13 +218,14 @@
             L.latLng(49.1252, 2.0555),
             L.latLng(49.0712, 2.1630)
           ],
+          router,
           lineOptions: { styles: [{ color: "#27ae60", weight: 5 }] },
           addWaypoints: false
         }).addTo(map);
       }
     }
 
-    // Fonction pour créer un trajet personnalisé
+    // === Trajet personnalisé via le formulaire ===
     async function customRoute() {
       const start = document.getElementById("start").value.trim();
       const end = document.getElementById("end").value.trim();
@@ -256,8 +263,14 @@
       const allPoints = [startCoords, ...stopCoords, endCoords].map(c => L.latLng(c[0], c[1]));
 
       if (control) map.removeControl(control);
+
+      const router = L.Routing.osrmv1({
+        serviceUrl: 'https://router.project-osrm.org/route/v1'
+      });
+
       control = L.Routing.control({
         waypoints: allPoints,
+        router,
         lineOptions: { styles: [{ color: "#f1c40f", weight: 5 }] },
         addWaypoints: false
       }).addTo(map);
