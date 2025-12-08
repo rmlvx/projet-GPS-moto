@@ -7,9 +7,10 @@
   <link rel="icon" href="assets/image_site.png" />
 
   <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link
     rel="stylesheet"
-    href="https://unpkg.com/leaflet/dist/leaflet.css"
+    href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"
   />
 
   <style>
@@ -28,7 +29,6 @@
       font-family: "Poppins", Arial, sans-serif;
       background-color: var(--bg-dark);
       color: var(--text-light);
-      overflow-x: hidden;
     }
 
     header {
@@ -45,16 +45,11 @@
       letter-spacing: 2px;
     }
 
-    header p {
-      margin-top: 8px;
-      color: var(--text-gray);
-    }
-
     #controls {
       display: flex;
       justify-content: center;
       gap: 15px;
-      padding: 20px;
+      padding: 15px;
       background-color: var(--bg-panel);
       box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
     }
@@ -68,7 +63,6 @@
       transition: 0.3s;
       color: white;
       font-weight: bold;
-      letter-spacing: 0.5px;
     }
 
     #controls button:hover {
@@ -86,11 +80,8 @@
     }
 
     #map {
-      height: 520px;
+      height: 550px;
       width: 100%;
-      border-top: 3px solid #000;
-      border-bottom: 3px solid #000;
-      z-index: 1;
     }
 
     #signalements {
@@ -138,9 +129,9 @@
   </header>
 
   <div id="controls">
-    <button class="btn-adr" onclick="setMode('adr')">Trajet à virages</button>
-    <button class="btn-lib" onclick="setMode('lib')">Trajet libre</button>
-    <button class="btn-det" onclick="setMode('det')">Trajet détente</button>
+    <button class="btn-adr" onclick="setRoute('adr')">Trajet à virages</button>
+    <button class="btn-lib" onclick="setRoute('lib')">Trajet libre</button>
+    <button class="btn-det" onclick="setRoute('det')">Trajet détente</button>
   </div>
 
   <div id="map"></div>
@@ -155,65 +146,77 @@
   </div>
 
   <footer>
-    © 2025 MotoLoop – Prototype créé à des fins pédagogiques
+    © 2025 MotoLoop – Prototype pédagogique
   </footer>
 
-  <!-- Leaflet JS -->
+  <!-- Leaflet JS + Routing Machine -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
   <script>
-    // Initialisation de la carte
+    // Création de la carte
     const map = L.map("map").setView([46.603354, 1.888334], 6);
 
-    // Fond de carte OpenStreetMap
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
 
-    // Exemple de trois itinéraires (routes fictives)
-    const adrRoute = L.polyline(
-      [
-        [48.8566, 2.3522],
-        [47.3900, 0.6889],
-        [45.7640, 4.8357],
-      ],
-      { color: "#e74c3c", weight: 5, opacity: 0 }
-    ).bindPopup("Trajet Adrénaline : virages et sensations fortes.");
+    let control = null; // pour stocker le trajet actuel
 
-    const libRoute = L.polyline(
-      [
-        [43.6045, 1.4440],
-        [44.8378, -0.5792],
-        [46.2276, 2.2137],
-      ],
-      { color: "#3498db", weight: 5, opacity: 0 }
-    ).bindPopup("Trajet Liberté : grands espaces et routes ouvertes.");
+    // Fonction de changement de trajet
+    function setRoute(type) {
+      if (control) {
+        map.removeControl(control); // Supprime l'ancien itinéraire
+      }
 
-    const detRoute = L.polyline(
-      [
-        [43.7102, 7.2620],
-        [45.1885, 5.7245],
-        [47.2184, -1.5536],
-      ],
-      { color: "#27ae60", weight: 5, opacity: 0 }
-    ).bindPopup("Trajet Détente : paysages calmes et circulation fluide.");
+      if (type === "adr") {
+        control = L.Routing.control({
+          waypoints: [
+            L.latLng(45.1885, 5.7245), // Grenoble
+            L.latLng(45.9237, 6.8694), // Chamonix
+          ],
+          lineOptions: {
+            styles: [{ color: "#e74c3c", weight: 5 }],
+          },
+          routeWhileDragging: false,
+          draggableWaypoints: false,
+          addWaypoints: false,
+        }).addTo(map);
+      }
 
-    adrRoute.addTo(map);
-    libRoute.addTo(map);
-    detRoute.addTo(map);
+      if (type === "lib") {
+        control = L.Routing.control({
+          waypoints: [
+            L.latLng(43.6045, 1.4440), // Toulouse
+            L.latLng(44.8378, -0.5792), // Bordeaux
+          ],
+          lineOptions: {
+            styles: [{ color: "#3498db", weight: 5 }],
+          },
+          routeWhileDragging: false,
+          draggableWaypoints: false,
+          addWaypoints: false,
+        }).addTo(map);
+      }
 
-    // Fonction pour changer de mode
-    function setMode(mode) {
-      adrRoute.setStyle({ opacity: 0 });
-      libRoute.setStyle({ opacity: 0 });
-      detRoute.setStyle({ opacity: 0 });
-
-      if (mode === "adr") adrRoute.setStyle({ opacity: 1 });
-      else if (mode === "lib") libRoute.setStyle({ opacity: 1 });
-      else if (mode === "det") detRoute.setStyle({ opacity: 1 });
+      if (type === "det") {
+        control = L.Routing.control({
+          waypoints: [
+            L.latLng(43.7102, 7.2620), // Nice
+            L.latLng(44.4949, 11.3426), // Bologne (Italie)
+          ],
+          lineOptions: {
+            styles: [{ color: "#27ae60", weight: 5 }],
+          },
+          routeWhileDragging: false,
+          draggableWaypoints: false,
+          addWaypoints: false,
+        }).addTo(map);
+      }
     }
 
-    // Mode par défaut
-    setMode("adr");
+    // Trajet par défaut au chargement
+    setRoute("adr");
   </script>
 </body>
 </html>
