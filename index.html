@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MotoLoop - GPS Moto</title>
+  <title>MotoLoop Val-d’Oise - GPS Moto</title>
   <link rel="icon" href="assets/image_site.png" />
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"
@@ -45,6 +48,11 @@
       letter-spacing: 2px;
     }
 
+    header p {
+      margin-top: 5px;
+      color: var(--text-gray);
+    }
+
     #controls {
       display: flex;
       justify-content: center;
@@ -69,19 +77,15 @@
       transform: scale(1.05);
     }
 
-    .btn-adr {
-      background-color: var(--accent-red);
-    }
-    .btn-lib {
-      background-color: var(--accent-blue);
-    }
-    .btn-det {
-      background-color: var(--accent-green);
-    }
+    .btn-adr { background-color: var(--accent-red); }
+    .btn-lib { background-color: var(--accent-blue); }
+    .btn-det { background-color: var(--accent-green); }
 
     #map {
       height: 550px;
       width: 100%;
+      border-top: 2px solid #000;
+      border-bottom: 2px solid #000;
     }
 
     #signalements {
@@ -124,7 +128,7 @@
 </head>
 <body>
   <header>
-    <h1>🏍️ MotoLoop</h1>
+    <h1>🏍️ MotoLoop - Val-d’Oise</h1>
     <p>Le GPS des motards : adrénaline • liberté • détente</p>
   </header>
 
@@ -139,14 +143,12 @@
   <div id="signalements">
     <h2>🚧 Signaler un danger</h2>
     <button onclick="alert('🚔 Police signalée')">🚔 Police</button>
-    <button onclick="alert('🪨 Objet sur la route signalé')">
-      🪨 Objet sur la route
-    </button>
+    <button onclick="alert('🪨 Objet sur la route signalé')">🪨 Objet sur la route</button>
     <button onclick="alert('💥 Accident signalé')">💥 Accident</button>
   </div>
 
   <footer>
-    © 2025 MotoLoop – Prototype pédagogique
+    © 2025 MotoLoop Val-d’Oise – Prototype pédagogique
   </footer>
 
   <!-- Leaflet JS + Routing Machine -->
@@ -154,68 +156,79 @@
   <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
   <script>
-    // Création de la carte
-    const map = L.map("map").setView([46.603354, 1.888334], 6);
+    // Création de la carte centrée sur le Val-d'Oise
+    const map = L.map("map").setView([49.083, 2.2], 10);
 
+    // Fond de carte OpenStreetMap
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
 
-    let control = null; // pour stocker le trajet actuel
+    // Limitation géographique au Val-d’Oise
+    const bounds = L.latLngBounds(
+      [48.85, 1.7],  // sud-ouest
+      [49.25, 2.55]  // nord-est
+    );
+    map.setMaxBounds(bounds);
+    map.on("drag", function() {
+      map.panInsideBounds(bounds, { animate: false });
+    });
+
+    let control = null; // pour stocker le trajet affiché
 
     // Fonction de changement de trajet
     function setRoute(type) {
       if (control) {
-        map.removeControl(control); // Supprime l'ancien itinéraire
+        map.removeControl(control);
       }
 
       if (type === "adr") {
+        // Adrénaline : L’Isle-Adam → Marines
         control = L.Routing.control({
           waypoints: [
-            L.latLng(45.1885, 5.7245), // Grenoble
-            L.latLng(45.9237, 6.8694), // Chamonix
+            L.latLng(49.1083, 2.2244),
+            L.latLng(49.1381, 1.9814)
           ],
-          lineOptions: {
-            styles: [{ color: "#e74c3c", weight: 5 }],
-          },
+          lineOptions: { styles: [{ color: "#e74c3c", weight: 5 }] },
           routeWhileDragging: false,
           draggableWaypoints: false,
           addWaypoints: false,
+          show: false
         }).addTo(map);
       }
 
       if (type === "lib") {
+        // Liberté : Cergy → Enghien-les-Bains
         control = L.Routing.control({
           waypoints: [
-            L.latLng(43.6045, 1.4440), // Toulouse
-            L.latLng(44.8378, -0.5792), // Bordeaux
+            L.latLng(49.0356, 2.0600),
+            L.latLng(48.9726, 2.3166)
           ],
-          lineOptions: {
-            styles: [{ color: "#3498db", weight: 5 }],
-          },
+          lineOptions: { styles: [{ color: "#3498db", weight: 5 }] },
           routeWhileDragging: false,
           draggableWaypoints: false,
           addWaypoints: false,
+          show: false
         }).addTo(map);
       }
 
       if (type === "det") {
+        // Détente : Magny-en-Vexin → Auvers-sur-Oise
         control = L.Routing.control({
           waypoints: [
-            L.latLng(43.7102, 7.2620), // Nice
-            L.latLng(44.4949, 11.3426), // Bologne (Italie)
+            L.latLng(49.1553, 1.7844),
+            L.latLng(49.0712, 2.1630)
           ],
-          lineOptions: {
-            styles: [{ color: "#27ae60", weight: 5 }],
-          },
+          lineOptions: { styles: [{ color: "#27ae60", weight: 5 }] },
           routeWhileDragging: false,
           draggableWaypoints: false,
           addWaypoints: false,
+          show: false
         }).addTo(map);
       }
     }
 
-    // Trajet par défaut au chargement
+    // Trajet par défaut au démarrage
     setRoute("adr");
   </script>
 </body>
