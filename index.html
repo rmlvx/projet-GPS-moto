@@ -1,131 +1,219 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPS Moto - trajets et balades moto</title>
-    <link rel="icon" href="assets/image_site.png">
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MotoLoop - GPS Moto</title>
+  <link rel="icon" href="assets/image_site.png" />
 
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-        }
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
 
-        header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
+  <style>
+    :root {
+      --bg-dark: #1a1a1a;
+      --bg-panel: #222;
+      --accent-red: #e74c3c;
+      --accent-blue: #3498db;
+      --accent-green: #27ae60;
+      --text-light: #f4f4f4;
+      --text-gray: #ccc;
+    }
 
-        header h1 {
-            margin: 0;
-            font-size: 2em;
-        }
+    body {
+      margin: 0;
+      font-family: "Poppins", Arial, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-light);
+      overflow-x: hidden;
+    }
 
-        #controls {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            padding: 15px;
-            background-color: #ecf0f1;
-        }
+    header {
+      background: linear-gradient(90deg, #000000, #1f1f1f);
+      color: white;
+      padding: 30px 15px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
 
-        #controls button {
-            padding: 10px 20px;
-            font-size: 1em;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
+    header h1 {
+      margin: 0;
+      font-size: 2.2em;
+      letter-spacing: 2px;
+    }
 
-        #controls button:hover {
-            opacity: 0.8;
-        }
+    header p {
+      margin-top: 8px;
+      color: var(--text-gray);
+    }
 
-        #map {
-            height: 500px;
-            width: 100%;
-        }
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      padding: 20px;
+      background-color: var(--bg-panel);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    }
 
-        #signalements {
-            padding: 20px;
-            text-align: center;
-        }
+    #controls button {
+      padding: 12px 25px;
+      font-size: 1em;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: 0.3s;
+      color: white;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
 
-        #signalements button {
-            padding: 10px 15px;
-            margin: 5px;
-            font-size: 0.9em;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-    </style>
+    #controls button:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-adr {
+      background-color: var(--accent-red);
+    }
+    .btn-lib {
+      background-color: var(--accent-blue);
+    }
+    .btn-det {
+      background-color: var(--accent-green);
+    }
+
+    #map {
+      height: 520px;
+      width: 100%;
+      border-top: 3px solid #000;
+      border-bottom: 3px solid #000;
+      z-index: 1;
+    }
+
+    #signalements {
+      padding: 25px;
+      text-align: center;
+      background-color: var(--bg-panel);
+    }
+
+    #signalements h2 {
+      margin-top: 0;
+      color: var(--accent-blue);
+      letter-spacing: 1px;
+    }
+
+    #signalements button {
+      padding: 10px 18px;
+      margin: 8px;
+      font-size: 1em;
+      border-radius: 8px;
+      border: none;
+      background-color: #333;
+      color: var(--text-light);
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    #signalements button:hover {
+      background-color: var(--accent-blue);
+    }
+
+    footer {
+      background-color: #111;
+      color: var(--text-gray);
+      text-align: center;
+      padding: 10px 0;
+      font-size: 0.9em;
+      border-top: 1px solid #222;
+    }
+  </style>
 </head>
 <body>
+  <header>
+    <h1>🏍️ MotoLoop</h1>
+    <p>Le GPS des motards : adrénaline • liberté • détente</p>
+  </header>
 
-    <header>
-        <h1>GPS Moto</h1>
-        <p>Le GPS des motards : adrénaline, liberté, détente</p>
-    </header>
+  <div id="controls">
+    <button class="btn-adr" onclick="setMode('adr')">Trajet à virages</button>
+    <button class="btn-lib" onclick="setMode('lib')">Trajet libre</button>
+    <button class="btn-det" onclick="setMode('det')">Trajet détente</button>
+  </div>
 
-    <div id="controls">
-        <button onclick="setMode('adr')">Trajet virages</button>
-        <button onclick="setMode('lib')">Trajet compromis</button>
-        <button onclick="setMode('det')"> Trajet dynamique</button>
-    </div>
+  <div id="map"></div>
 
-    <div id="map"></div>
+  <div id="signalements">
+    <h2>🚧 Signaler un danger</h2>
+    <button onclick="alert('🚔 Police signalée')">🚔 Police</button>
+    <button onclick="alert('🪨 Objet sur la route signalé')">
+      🪨 Objet sur la route
+    </button>
+    <button onclick="alert('💥 Accident signalé')">💥 Accident</button>
+  </div>
 
-    <div id="signalements">
-        <h2>Signaler un danger</h2>
-        <button onclick="alert('Signalement: Nid-de-poule')">Police</button>
-        <button onclick="alert('Signalement: Débris sur la route')">objet sur la route</button>
-        <button onclick="alert('Signalement: Accident')">Accident</button>
-    </div>
+  <footer>
+    © 2025 MotoLoop – Prototype créé à des fins pédagogiques
+  </footer>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script>
-        // Initialisation de la carte
-        const map = L.map('map').setView([46.603354, 1.888334], 6); // France centré
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Initialisation de la carte
+    const map = L.map("map").setView([46.603354, 1.888334], 6);
 
-        // TileLayer OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+    // Fond de carte OpenStreetMap
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
 
-        // Exemple de routes (polylines)
-        const adrRoute = L.polyline([[48.8566, 2.3522], [45.7640, 4.8357]], {color: 'red'}).addTo(map);
-        const libRoute = L.polyline([[43.6045, 1.444]], [44.8378, -0.5792], {color: 'blue'}).addTo(map);
-        const detRoute = L.polyline([[43.7102, 7.2620], [45.1885, 5.7245]], {color: 'green'}).addTo(map);
+    // Exemple de trois itinéraires (routes fictives)
+    const adrRoute = L.polyline(
+      [
+        [48.8566, 2.3522],
+        [47.3900, 0.6889],
+        [45.7640, 4.8357],
+      ],
+      { color: "#e74c3c", weight: 5, opacity: 0 }
+    ).bindPopup("Trajet Adrénaline : virages et sensations fortes.");
 
-        // Fonction pour changer le mode
-        function setMode(mode) {
-            // Masquer toutes les routes
-            adrRoute.setStyle({opacity: 0});
-            libRoute.setStyle({opacity: 0});
-            detRoute.setStyle({opacity: 0});
+    const libRoute = L.polyline(
+      [
+        [43.6045, 1.4440],
+        [44.8378, -0.5792],
+        [46.2276, 2.2137],
+      ],
+      { color: "#3498db", weight: 5, opacity: 0 }
+    ).bindPopup("Trajet Liberté : grands espaces et routes ouvertes.");
 
-            // Afficher la route choisie
-            if(mode === 'adr') {
-                adrRoute.setStyle({opacity: 1});
-            } else if(mode === 'lib') {
-                libRoute.setStyle({opacity: 1});
-            } else if(mode === 'det') {
-                detRoute.setStyle({opacity: 1});
-            }
-        }
+    const detRoute = L.polyline(
+      [
+        [43.7102, 7.2620],
+        [45.1885, 5.7245],
+        [47.2184, -1.5536],
+      ],
+      { color: "#27ae60", weight: 5, opacity: 0 }
+    ).bindPopup("Trajet Détente : paysages calmes et circulation fluide.");
 
-        // Mode par défaut
-        setMode('adr');
-    </script>
+    adrRoute.addTo(map);
+    libRoute.addTo(map);
+    detRoute.addTo(map);
 
+    // Fonction pour changer de mode
+    function setMode(mode) {
+      adrRoute.setStyle({ opacity: 0 });
+      libRoute.setStyle({ opacity: 0 });
+      detRoute.setStyle({ opacity: 0 });
+
+      if (mode === "adr") adrRoute.setStyle({ opacity: 1 });
+      else if (mode === "lib") libRoute.setStyle({ opacity: 1 });
+      else if (mode === "det") detRoute.setStyle({ opacity: 1 });
+    }
+
+    // Mode par défaut
+    setMode("adr");
+  </script>
 </body>
 </html>
