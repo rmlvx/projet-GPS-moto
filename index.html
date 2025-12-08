@@ -1,52 +1,231 @@
-function setRoute(type) {
-  if (control) {
-    map.removeControl(control);
-  }
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MotoLoop Val-d’Oise - GPS Moto</title>
+  <link rel="icon" href="assets/image_site.png" />
 
-  if (type === "adr") {
-    // Adrénaline : parcours sinueux dans le Vexin (L'Isle-Adam -> Vallangoujard -> Marines)
-    control = L.Routing.control({
-      waypoints: [
-        L.latLng(49.1083, 2.2244), // L’Isle-Adam
-        L.latLng(49.1168, 2.1144), // Vallangoujard (route D151)
-        L.latLng(49.1381, 1.9814)  // Marines
-      ],
-      lineOptions: { styles: [{ color: "#e74c3c", weight: 5 }] },
-      routeWhileDragging: false,
-      draggableWaypoints: false,
-      addWaypoints: false,
-      show: false
-    }).addTo(map);
-  }
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
 
-  if (type === "lib") {
-    // Liberté : Cergy → Enghien-les-Bains
-    control = L.Routing.control({
-      waypoints: [
-        L.latLng(49.0356, 2.0600),
-        L.latLng(48.9726, 2.3166)
-      ],
-      lineOptions: { styles: [{ color: "#3498db", weight: 5 }] },
-      routeWhileDragging: false,
-      draggableWaypoints: false,
-      addWaypoints: false,
-      show: false
-    }).addTo(map);
-  }
+  <style>
+    :root {
+      --bg-dark: #1a1a1a;
+      --bg-panel: #222;
+      --accent-red: #e74c3c;
+      --accent-blue: #3498db;
+      --accent-green: #27ae60;
+      --text-light: #f4f4f4;
+      --text-gray: #ccc;
+    }
 
-  if (type === "det") {
-    // Détente : Magny-en-Vexin → Auvers-sur-Oise
-    control = L.Routing.control({
-      waypoints: [
-        L.latLng(49.1553, 1.7844),
-        L.latLng(49.1252, 2.0555),
-        L.latLng(49.0712, 2.1630)
-      ],
-      lineOptions: { styles: [{ color: "#27ae60", weight: 5 }] },
-      routeWhileDragging: false,
-      draggableWaypoints: false,
-      addWaypoints: false,
-      show: false
+    body {
+      margin: 0;
+      font-family: "Poppins", Arial, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-light);
+    }
+
+    header {
+      background: linear-gradient(90deg, #000000, #1f1f1f);
+      color: white;
+      padding: 30px 15px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2.2em;
+      letter-spacing: 2px;
+    }
+
+    header p {
+      margin-top: 5px;
+      color: var(--text-gray);
+    }
+
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      padding: 15px;
+      background-color: var(--bg-panel);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    #controls button {
+      padding: 12px 25px;
+      font-size: 1em;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: 0.3s;
+      color: white;
+      font-weight: bold;
+    }
+
+    #controls button:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-adr { background-color: var(--accent-red); }
+    .btn-lib { background-color: var(--accent-blue); }
+    .btn-det { background-color: var(--accent-green); }
+
+    #map {
+      height: 550px;
+      width: 100%;
+      border-top: 2px solid #000;
+      border-bottom: 2px solid #000;
+    }
+
+    #signalements {
+      padding: 25px;
+      text-align: center;
+      background-color: var(--bg-panel);
+    }
+
+    #signalements h2 {
+      margin-top: 0;
+      color: var(--accent-blue);
+      letter-spacing: 1px;
+    }
+
+    #signalements button {
+      padding: 10px 18px;
+      margin: 8px;
+      font-size: 1em;
+      border-radius: 8px;
+      border: none;
+      background-color: #333;
+      color: var(--text-light);
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    #signalements button:hover {
+      background-color: var(--accent-blue);
+    }
+
+    footer {
+      background-color: #111;
+      color: var(--text-gray);
+      text-align: center;
+      padding: 10px 0;
+      font-size: 0.9em;
+      border-top: 1px solid #222;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏍️ MotoLoop - Val-d’Oise</h1>
+    <p>Le GPS des motards : adrénaline • liberté • détente</p>
+  </header>
+
+  <div id="controls">
+    <button class="btn-adr" onclick="setRoute('adr')">Trajet à virages</button>
+    <button class="btn-lib" onclick="setRoute('lib')">Trajet libre</button>
+    <button class="btn-det" onclick="setRoute('det')">Trajet détente</button>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="signalements">
+    <h2>🚧 Signaler un danger</h2>
+    <button onclick="alert('🚔 Police signalée')">🚔 Police</button>
+    <button onclick="alert('🪨 Objet sur la route signalé')">🪨 Objet sur la route</button>
+    <button onclick="alert('💥 Accident signalé')">💥 Accident</button>
+  </div>
+
+  <footer>
+    © 2025 MotoLoop Val-d’Oise – Prototype pédagogique
+  </footer>
+
+  <!-- Leaflet JS + Routing Machine -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+  <script>
+    // Création de la carte centrée sur le Val-d'Oise
+    const map = L.map("map").setView([49.083, 2.2], 10);
+
+    // Fond de carte OpenStreetMap
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
-  }
-}
+
+    // Limitation géographique au Val-d’Oise
+    const bounds = L.latLngBounds(
+      [48.85, 1.7],  // sud-ouest
+      [49.25, 2.55]  // nord-est
+    );
+    map.setMaxBounds(bounds);
+    map.on("drag", function() {
+      map.panInsideBounds(bounds, { animate: false });
+    });
+
+    let control = null; // pour stocker le trajet affiché
+
+    // Fonction de changement de trajet
+    function setRoute(type) {
+      if (control) {
+        map.removeControl(control);
+      }
+
+      if (type === "adr") {
+        // Adrénaline : parcours sinueux (L'Isle-Adam → Vallangoujard → Marines)
+        control = L.Routing.control({
+          waypoints: [
+            L.latLng(49.1083, 2.2244), // L’Isle-Adam
+            L.latLng(49.1168, 2.1144), // Vallangoujard (route D151)
+            L.latLng(49.1381, 1.9814)  // Marines
+          ],
+          lineOptions: { styles: [{ color: "#e74c3c", weight: 5 }] },
+          routeWhileDragging: false,
+          draggableWaypoints: false,
+          addWaypoints: false,
+          show: false
+        }).addTo(map);
+      }
+
+      if (type === "lib") {
+        // Liberté : Cergy → Enghien-les-Bains
+        control = L.Routing.control({
+          waypoints: [
+            L.latLng(49.0356, 2.0600),
+            L.latLng(48.9726, 2.3166)
+          ],
+          lineOptions: { styles: [{ color: "#3498db", weight: 5 }] },
+          routeWhileDragging: false,
+          draggableWaypoints: false,
+          addWaypoints: false,
+          show: false
+        }).addTo(map);
+      }
+
+      if (type === "det") {
+        // Détente : Magny-en-Vexin → Auvers-sur-Oise
+        control = L.Routing.control({
+          waypoints: [
+            L.latLng(49.1553, 1.7844),
+            L.latLng(49.1252, 2.0555),
+            L.latLng(49.0712, 2.1630)
+          ],
+          lineOptions: { styles: [{ color: "#27ae60", weight: 5 }] },
+          routeWhileDragging: false,
+          draggableWaypoints: false,
+          addWaypoints: false,
+          show: false
+        }).addTo(map);
+      }
+    }
+
+    // Trajet par défaut au démarrage
+    setRoute("adr");
+  </script>
+</body>
+</html>
