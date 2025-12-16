@@ -133,10 +133,9 @@
 <body>
   <header>
     <h1>🏍️ GPS Moto</h1>
-    <p>Planifie ta balade moto : choisis une ville de départ, une ville d'arrivée et une ou plusieurs étapes si tu le souhaites !</p>
+    <p>Planifie ta balade moto : choisis ta ville de départ, d'arrivée et les étapes !</p>
   </header>
 
-  <!-- Formulaire de recherche de trajet -->
   <div id="routeForm">
     <input type="text" id="start" placeholder="Ville de départ (ex: Cergy)">
     <input type="text" id="stops" placeholder="Étapes (séparées par des virgules)">
@@ -144,11 +143,10 @@
     <button onclick="customRoute()">Tracer le trajet</button>
   </div>
 
-  <!-- Contrôles des types de trajet -->
   <div id="controls">
-    <button class="btn-adr" onclick="setRoute('adr')">Trajet à virages</button>
-    <button class="btn-lib" onclick="setRoute('lib')">Trajet libre</button>
-    <button class="btn-det" onclick="setRoute('det')">Trajet détente</button>
+    <button class="btn-adr" onclick="changeMode('adr')">Trajet à virages</button>
+    <button class="btn-lib" onclick="changeMode('lib')">Trajet libre</button>
+    <button class="btn-det" onclick="changeMode('det')">Trajet détente</button>
   </div>
 
   <div id="map"></div>
@@ -162,7 +160,6 @@
 
   <footer>© 2025 GPS Moto</footer>
 
-  <!-- Leaflet JS + Routing Machine -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
@@ -177,70 +174,56 @@
     map.on("drag", () => map.panInsideBounds(bounds, { animate: false }));
 
     let control = null;
+    let currentMode = "adr"; // mode par défaut
 
-    // === Fonctions de trajets prédéfinis ===
-    function setRoute(type) {
+    // === Fonction de calcul générique ===
+    async function getCoords(city) {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city + ', Val-d\'Oise, France')}`);
+      const data = await res.json();
+      if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+      return null;
+    }
+
+    async function drawRoute(points) {
       if (control) map.removeControl(control);
 
       const router = L.Routing.osrmv1({
         serviceUrl: 'https://router.project-osrm.org/route/v1'
       });
 
-      if (type === "adr") {
-        control = L.Routing.control({
-          waypoints: [
-            L.latLng(49.1083, 2.2244), // L’Isle-Adam
-            L.latLng(49.1168, 2.1144), // Vallangoujard
-            L.latLng(49.1381, 1.9814)  // Marines
-          ],
-          router,
-          lineOptions: { styles: [{ color: "#e74c3c", weight: 5 }] },
-          addWaypoints: false
-        }).addTo(map);
-      }
+      // couleur selon le mode
+      const color =
+        currentMode === "adr" ? "#e74c3c" :
+        currentMode === "lib" ? "#3498db" :
+        "#27ae60";
 
-      if (type === "lib") {
-        control = L.Routing.control({
-          waypoints: [
-            L.latLng(49.0356, 2.0600),
-            L.latLng(48.9726, 2.3166)
-          ],
-          router,
-          lineOptions: { styles: [{ color: "#3498db", weight: 5 }] },
-          addWaypoints: false
-        }).addTo(map);
-      }
+      // option pour simuler plus de virages : on ajoute un léger "bruit" sur les coordonnées
+      const modifiedPoints = currentMode === "adr"
+        ? points.map((p, i) => {
+            if (i > 0 && i < points.length - 1) {
+              return L.latLng(p.lat + (Math.random() - 0.5) * 0.03, p.lng + (Math.random() - 0.5) * 0.03);
+            }
+            return p;
+          })
+        : points;
 
-      if (type === "det") {
-        control = L.Routing.control({
-          waypoints: [
-            L.latLng(49.1553, 1.7844),
-            L.latLng(49.1252, 2.0555),
-            L.latLng(49.0712, 2.1630)
-          ],
-          router,
-          lineOptions: { styles: [{ color: "#27ae60", weight: 5 }] },
-          addWaypoints: false
-        }).addTo(map);
-      }
+      control = L.Routing.control({
+        waypoints: modifiedPoints,
+        router,
+        lineOptions: { styles: [{ color, weight: 5 }] },
+        addWaypoints: false
+      }).addTo(map);
     }
 
-    // === Trajet personnalisé via le formulaire ===
+    // === Créer le trajet depuis le formulaire ===
     async function customRoute() {
       const start = document.getElementById("start").value.trim();
       const end = document.getElementById("end").value.trim();
       const stops = document.getElementById("stops").value.trim();
 
       if (!start || !end) {
-        alert("Merci d'indiquer au minimum une ville de départ et d'arrivée.");
+        alert("Merci d'indiquer une ville de départ et d'arrivée.");
         return;
-      }
-
-      async function getCoords(city) {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city + ', Val-d\'Oise, France')}`);
-        const data = await res.json();
-        if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-        return null;
       }
 
       const startCoords = await getCoords(start);
@@ -256,28 +239,30 @@
       }
 
       if (!startCoords || !endCoords) {
-        alert("Impossible de localiser une des villes. Vérifiez les noms.");
+        alert("Impossible de localiser une des villes. Vérifie les noms.");
         return;
       }
 
       const allPoints = [startCoords, ...stopCoords, endCoords].map(c => L.latLng(c[0], c[1]));
-
-      if (control) map.removeControl(control);
-
-      const router = L.Routing.osrmv1({
-        serviceUrl: 'https://router.project-osrm.org/route/v1'
-      });
-
-      control = L.Routing.control({
-        waypoints: allPoints,
-        router,
-        lineOptions: { styles: [{ color: "#f1c40f", weight: 5 }] },
-        addWaypoints: false
-      }).addTo(map);
+      drawRoute(allPoints);
     }
 
-    // Trajet par défaut au démarrage
-    setRoute("adr");
+    // === Changement de mode ===
+    function changeMode(mode) {
+      currentMode = mode;
+      if (control) {
+        // Recalcule la route actuelle selon le nouveau mode
+        const points = control.getWaypoints().map(w => w.latLng);
+        drawRoute(points);
+      }
+    }
+
+    // === Exemple par défaut au démarrage ===
+    drawRoute([
+      L.latLng(49.1083, 2.2244),
+      L.latLng(49.1168, 2.1144),
+      L.latLng(49.1381, 1.9814)
+    ]);
   </script>
 </body>
 </html>
