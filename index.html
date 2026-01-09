@@ -89,6 +89,12 @@
       transition: 0.3s;
       color: white;
       font-weight: bold;
+      opacity: 0.8;
+    }
+
+    #controls button.active {
+      opacity: 1;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
     }
 
     .btn-adr { background-color: var(--accent-red); }
@@ -133,20 +139,20 @@
 <body>
   <header>
     <h1>🏍️ GPS Moto</h1>
-    <p>Planifie ta balade moto : choisis ta ville de départ, d'arrivée et les étapes !</p>
+    <p>Planifie ta balade moto partout en France : choisis ta ville de départ, d'arrivée et les étapes !</p>
   </header>
 
   <div id="routeForm">
-    <input type="text" id="start" placeholder="Ville de départ (ex: Cergy)">
+    <input type="text" id="start" placeholder="Ville de départ (ex: Lyon)">
     <input type="text" id="stops" placeholder="Étapes (séparées par des virgules)">
-    <input type="text" id="end" placeholder="Ville d'arrivée (ex: Marines)">
+    <input type="text" id="end" placeholder="Ville d'arrivée (ex: Marseille)">
     <button onclick="customRoute()">Tracer le trajet</button>
   </div>
 
   <div id="controls">
-    <button class="btn-adr" onclick="changeMode('adr')">Trajet à virages</button>
-    <button class="btn-lib" onclick="changeMode('lib')">Trajet libre</button>
-    <button class="btn-det" onclick="changeMode('det')">Trajet détente</button>
+    <button id="btn-adr" class="btn-adr active" onclick="changeMode('adr')">Trajet à virages</button>
+    <button id="btn-lib" class="btn-lib" onclick="changeMode('lib')">Trajet libre</button>
+    <button id="btn-det" class="btn-det" onclick="changeMode('det')">Trajet détente</button>
   </div>
 
   <div id="map"></div>
@@ -164,58 +170,68 @@
   <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
   <script>
-    const map = L.map("map").setView([49.083, 2.2], 10);
+    // === Initialisation carte ===
+    const map = L.map("map").setView([46.603354, 1.888334], 6); // centrée sur la France
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
 
-    const bounds = L.latLngBounds([48.85, 1.7], [49.25, 2.55]);
-    map.setMaxBounds(bounds);
-    map.on("drag", () => map.panInsideBounds(bounds, { animate: false }));
-
     let control = null;
-    let currentMode = "adr"; // mode par défaut
+    let currentMode = "adr"; 
+    let currentPoints = []; 
 
-    // === Fonction de calcul générique ===
+    // === Géocodage avec Nominatim ===
     async function getCoords(city) {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city + ', Val-d\'Oise, France')}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city + ', France')}`);
       const data = await res.json();
       if (data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
       return null;
     }
 
+    // === Tracé de l'itinéraire ===
     async function drawRoute(points) {
+      if (!points || points.length < 2) return;
+      currentPoints = points;
+
       if (control) map.removeControl(control);
 
       const router = L.Routing.osrmv1({
-        serviceUrl: 'https://router.project-osrm.org/route/v1'
+        serviceUrl: "https://router.project-osrm.org/route/v1",
+        profile: "driving",
       });
 
-      // couleur selon le mode
       const color =
         currentMode === "adr" ? "#e74c3c" :
         currentMode === "lib" ? "#3498db" :
         "#27ae60";
 
-      // option pour simuler plus de virages : on ajoute un léger "bruit" sur les coordonnées
-      const modifiedPoints = currentMode === "adr"
-        ? points.map((p, i) => {
-            if (i > 0 && i < points.length - 1) {
-              return L.latLng(p.lat + (Math.random() - 0.5) * 0.03, p.lng + (Math.random() - 0.5) * 0.03);
-            }
-            return p;
-          })
-        : points;
+      // Adrénaline = route plus "tordue"
+      const modifiedPoints =
+        currentMode === "adr"
+          ? points.map((p, i) => {
+              if (i > 0 && i < points.length - 1) {
+                return L.latLng(p.lat + (Math.random() - 0.5) * 0.05, p.lng + (Math.random() - 0.5) * 0.05);
+              }
+              return p;
+            })
+          : points;
 
       control = L.Routing.control({
         waypoints: modifiedPoints,
         router,
-        lineOptions: { styles: [{ color, weight: 5 }] },
-        addWaypoints: false
+        lineOptions: { styles: [{ color, weight: 5, opacity: 0.9 }] },
+        addWaypoints: false,
+        draggableWaypoints: false,
+        routeWhileDragging: false,
+        show: false,
       }).addTo(map);
+
+      // Ajuste la vue sur le trajet
+      const bounds = L.latLngBounds(points);
+      map.fitBounds(bounds, { padding: [50, 50] });
     }
 
-    // === Créer le trajet depuis le formulaire ===
+    // === Trajet via formulaire ===
     async function customRoute() {
       const start = document.getElementById("start").value.trim();
       const end = document.getElementById("end").value.trim();
@@ -250,18 +266,23 @@
     // === Changement de mode ===
     function changeMode(mode) {
       currentMode = mode;
-      if (control) {
-        // Recalcule la route actuelle selon le nouveau mode
-        const points = control.getWaypoints().map(w => w.latLng);
-        drawRoute(points);
+
+      // change visuel bouton actif
+      document.querySelectorAll("#controls button").forEach(btn => btn.classList.remove("active"));
+      document.getElementById(`btn-${mode}`).classList.add("active");
+
+      if (currentPoints.length > 1) {
+        drawRoute(currentPoints);
+      } else {
+        alert("Veuillez d'abord tracer un trajet avant de changer de mode.");
       }
     }
 
-    // === Exemple par défaut au démarrage ===
+    // === Exemple par défaut ===
     drawRoute([
-      L.latLng(49.1083, 2.2244),
-      L.latLng(49.1168, 2.1144),
-      L.latLng(49.1381, 1.9814)
+      L.latLng(48.8566, 2.3522), // Paris
+      L.latLng(45.7640, 4.8357), // Lyon
+      L.latLng(43.6045, 1.4442)  // Toulouse
     ]);
   </script>
 </body>
