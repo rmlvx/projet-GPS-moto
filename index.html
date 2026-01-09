@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GPS Moto</title>
+  <title>GPS Moto France</title>
   <link rel="icon" href="assets/image_site.png" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
@@ -138,7 +138,7 @@
 </head>
 <body>
   <header>
-    <h1>🏍️ GPS Moto</h1>
+    <h1>🏍️ GPS Moto France</h1>
     <p>Planifie ta balade moto partout en France : choisis ta ville de départ, d'arrivée et les étapes !</p>
   </header>
 
@@ -157,23 +157,23 @@
 
   <div id="map"></div>
 
-  <footer>© 2025 GPS Moto - MILVAUX Raphaël</footer>
+
+  <footer>© 2025 GPS Moto - MILVAUX Raphael</footer>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
   <script>
-    // === Initialisation carte ===
-    const map = L.map("map").setView([46.603354, 1.888334], 6); // centrée sur la France
+    const map = L.map("map").setView([46.603354, 1.888334], 6);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
 
     let control = null;
-    let currentMode = "adr"; 
-    let currentPoints = []; 
+    let currentMode = "adr";
+    let currentPoints = [];
 
-    // === Géocodage avec Nominatim ===
+    // === Obtenir les coordonnées via Nominatim ===
     async function getCoords(city) {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city + ', France')}`);
       const data = await res.json();
@@ -181,36 +181,55 @@
       return null;
     }
 
-    // === Tracé de l'itinéraire ===
+    // === Tracer un itinéraire ===
     async function drawRoute(points) {
       if (!points || points.length < 2) return;
       currentPoints = points;
-
       if (control) map.removeControl(control);
 
+      // MODE ADRENALINE : OpenRouteService - évite autoroutes, privilégie routes sinueuses
+      if (currentMode === "adr") {
+        try {
+          const coords = points.map(p => [p.lng, p.lat]);
+          const body = {
+            coordinates: coords,
+            preference: "recommended",
+            profile: "cycling-mountain", // routes sinueuses / montagneuses
+            instructions: false,
+            options: {
+              avoid_features: ["highways", "tollways"]
+            }
+          };
+
+          const res = await fetch("https://api.openrouteservice.org/v2/directions/cycling-mountain/geojson", {
+            method: "POST",
+            headers: {
+              "Authorization": "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjViMzczNGQyODAwYTRhYTA5YTkwNDBmZDA1N2Q5NzYzIiwiaCI6Im11cm11cjY0In0=", // 🔑 insère ici ta clé OpenRouteService
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(body)
+          });
+
+          const data = await res.json();
+          const route = L.geoJSON(data, { style: { color: "#e74c3c", weight: 5 } }).addTo(map);
+          map.fitBounds(route.getBounds());
+          control = route;
+          return;
+        } catch (err) {
+          alert("Erreur avec le mode Adrénaline (clé API requise)");
+        }
+      }
+
+      // Autres modes : OSRM classique
       const router = L.Routing.osrmv1({
         serviceUrl: "https://router.project-osrm.org/route/v1",
         profile: "driving",
       });
 
-      const color =
-        currentMode === "adr" ? "#e74c3c" :
-        currentMode === "lib" ? "#3498db" :
-        "#27ae60";
-
-      // Adrénaline = route plus "tordue"
-      const modifiedPoints =
-        currentMode === "adr"
-          ? points.map((p, i) => {
-              if (i > 0 && i < points.length - 1) {
-                return L.latLng(p.lat + (Math.random() - 0.5) * 0.05, p.lng + (Math.random() - 0.5) * 0.05);
-              }
-              return p;
-            })
-          : points;
+      const color = currentMode === "lib" ? "#3498db" : "#27ae60";
 
       control = L.Routing.control({
-        waypoints: modifiedPoints,
+        waypoints: points,
         router,
         lineOptions: { styles: [{ color, weight: 5, opacity: 0.9 }] },
         addWaypoints: false,
@@ -219,12 +238,11 @@
         show: false,
       }).addTo(map);
 
-      // Ajuste la vue sur le trajet
       const bounds = L.latLngBounds(points);
       map.fitBounds(bounds, { padding: [50, 50] });
     }
 
-    // === Trajet via formulaire ===
+    // === Créer le trajet depuis le formulaire ===
     async function customRoute() {
       const start = document.getElementById("start").value.trim();
       const end = document.getElementById("end").value.trim();
@@ -259,11 +277,8 @@
     // === Changement de mode ===
     function changeMode(mode) {
       currentMode = mode;
-
-      // change visuel bouton actif
       document.querySelectorAll("#controls button").forEach(btn => btn.classList.remove("active"));
       document.getElementById(`btn-${mode}`).classList.add("active");
-
       if (currentPoints.length > 1) {
         drawRoute(currentPoints);
       } else {
